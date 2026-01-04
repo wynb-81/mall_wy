@@ -1,0 +1,29 @@
+# 编译产物
+**/target/
+**/bin/
+**/build/
+*.class
+*.jar
+*.war
+*.ear
+
+# 开发环境与IDE
+/.idea/
+*.iml
+*.iws
+.vscode/
+*.swp
+.DS_Store
+
+# 系统文件
+Thumbs.db
+
+# 日志文件
+*.log
+logs/
+
+# 本地配置文件 (切勿提交密码！)
+**/src/main/resources/application*.yml
+**/src/main/resources/application*.properties
+# 但可以保留一个无敏感信息的示例文件
+!**/src/main/resources/application.example.yml

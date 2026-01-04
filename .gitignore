@@ -27,3 +27,5 @@ logs/
 **/src/main/resources/application*.properties
 # 但可以保留一个无敏感信息的示例文件
 !**/src/main/resources/application.example.yml
+# 忽略所有模块下的test目录
+**/test/

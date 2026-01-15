@@ -29,29 +29,6 @@ public class OrderController {
     private OrderService orderService;
 
     /**
-     *
-     * @author wynb-81
-     * @create 2025/6/25
-     **/
-    @PostMapping("/listWithItem")
-    public R listWithItem(@RequestBody Map<String, Object> params){
-        PageUtils page = orderService.queryPageWithItem(params);
-
-        return R.ok().put("page", page);
-    }
-
-    /**
-     * 返回订单状态
-     * @author wynb-81
-     * @create 2025/6/24
-     **/
-    @GetMapping("/status/{orderSn}")
-    public R getOrderStatus(@PathVariable("orderSn") String orderSn){
-        OrderEntity orderEntity =  orderService.getOrderByOrderSn(orderSn);
-        return R.ok().setData(orderEntity);
-    }
-
-    /**
      * 点击提交订单发送的请求
      * @author wynb-81
      * @create 2025/6/22
@@ -66,6 +43,29 @@ public class OrderController {
             //下单失败，返回到订单确认页重新确认订单信息
             return "redirect:http://order.gulimall.com/toTrade";
         }
+    }
+
+    /**
+     * 返回订单状态
+     * @author wynb-81
+     * @create 2025/6/24
+     **/
+    @GetMapping("/status/{orderSn}")
+    public R getOrderStatus(@PathVariable("orderSn") String orderSn){
+        OrderEntity orderEntity =  orderService.getOrderByOrderSn(orderSn);
+        return R.ok().setData(orderEntity);
+    }
+
+    /**
+     * 查询当前用户所有订单
+     * @author wynb-81
+     * @create 2025/6/25
+     **/
+    @PostMapping("/listWithItem")
+    public R listWithItem(@RequestBody Map<String, Object> params){
+        PageUtils page = orderService.queryPageWithItem(params);
+
+        return R.ok().put("page", page);
     }
 
     /**

@@ -30,7 +30,6 @@ public class PurchaseController {
     @Autowired
     private PurchaseService purchaseService;
 
-
     /**
      * 完成采购单
      * */
@@ -39,12 +38,6 @@ public class PurchaseController {
         purchaseService.done(doneVo);
         return R.ok();
     }
-
-
-
-
-
-
 
     /**
      * 领取采购单
@@ -64,6 +57,17 @@ public class PurchaseController {
     }
 
     /**
+     * 查询未领取的采购单
+     */
+    @RequestMapping("/unreceive/list")
+    //@RequiresPermissions("ware:purchase:list")
+    public R unReceiveList(@RequestParam Map<String, Object> params){
+        PageUtils page = purchaseService.queryPageUnreceivePurchase(params);
+
+        return R.ok().put("page", page);
+    }
+
+    /**
      * 列表
      */
     @RequestMapping("/list")
@@ -73,17 +77,6 @@ public class PurchaseController {
 
         return R.ok().put("page", page);
     }
-    /**
-     * 查询未领取的采购单
-     */
-    @RequestMapping("/unreceive/list")
-    //@RequiresPermissions("ware:purchase:list")
-    public R unreceivelist(@RequestParam Map<String, Object> params){
-        PageUtils page = purchaseService.queryPageUnreceivePurchase(params);
-
-        return R.ok().put("page", page);
-    }
-
 
     /**
      * 信息
@@ -131,5 +124,4 @@ public class PurchaseController {
 
         return R.ok();
     }
-
 }

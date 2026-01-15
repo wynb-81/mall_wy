@@ -7,4 +7,5 @@ import lombok.Data;
 public class SubmitOrderResponseVo {
     private OrderEntity order;
     private Integer code;//0成功
+    private String msg;
 }

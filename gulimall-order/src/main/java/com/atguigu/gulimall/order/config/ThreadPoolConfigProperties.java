@@ -11,4 +11,5 @@ public class ThreadPoolConfigProperties {
     private Integer coreSize;
     private Integer maxSize;
     private Integer keepAliveTime;
+    private Integer queueCapacity = 10000;
 }

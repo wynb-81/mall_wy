@@ -65,24 +65,6 @@ public class IndexController {
         return "hello";
     }
 
-    @ResponseBody
-    @GetMapping("/lockDoor")
-    public String lockDoor() throws InterruptedException {
-        RCountDownLatch door = redisson.getCountDownLatch("door");
 
-        door.trySetCount(5);
-        door.await();
-        return "放假了......";
-
-    }
-
-    @ResponseBody
-    @GetMapping("/gogogo/{id}")
-    public String gogogo(@PathVariable("id") Long id){
-        RCountDownLatch door = redisson.getCountDownLatch("door");
-        door.countDown();   //trySetCount计数减一
-
-        return id+"班的人都走了";
-    }
 
 }

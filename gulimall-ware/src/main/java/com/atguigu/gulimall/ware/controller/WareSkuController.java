@@ -24,7 +24,6 @@ import static com.atguigu.common.exception.BizCodeEnume.NO_STOCK_EXCEPTION;
  * 商品库存
  *
  * @author wynb-81
- * @email 2739884050@qq.com
  * @date 2025-04-23 14:40:05
  */
 @RestController
@@ -46,7 +45,6 @@ public class WareSkuController {
         }catch (NoStockException e){
             return R.error(NO_STOCK_EXCEPTION.getCode(),NO_STOCK_EXCEPTION.getMsg());
         }
-
     }
 
     /**

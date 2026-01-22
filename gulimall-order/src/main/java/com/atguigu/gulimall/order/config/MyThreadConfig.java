@@ -8,7 +8,7 @@ import org.springframework.context.annotation.Configuration;
 
 import java.util.concurrent.*;
 
-//TODO 现在创建线程池的方式太简陋了
+
 @Configuration
 //@EnableConfigurationProperties(ThreadPoolConfigProperties.class) 、
 //在ThreadPoolConfigProperties中已经通过@Componet加入了，再写就注册两次bean了，就会导致pool不知道使用哪个bean

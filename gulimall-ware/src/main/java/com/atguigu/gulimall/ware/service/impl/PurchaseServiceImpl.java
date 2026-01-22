@@ -73,7 +73,6 @@ public class PurchaseServiceImpl extends ServiceImpl<PurchaseDao, PurchaseEntity
             this.save(purchaseEntity);
             purchaseId = purchaseEntity.getId();    //此时的采购单ID就是新增的这个采购单实体的ID
         }
-        //TODO 确认采购单状态是0或者1才可以合并
         List<Long> items = vo.getItems();
         Long finalPurchaseId = purchaseId;
         List<PurchaseDetailEntity> collect = items.stream().map(i -> {

@@ -92,7 +92,6 @@ import org.springframework.util.StringUtils;
 
     @Override
     public void removeMenuByIds(List<Long> aslist) {
-        //TODO 1.检查当前删除的菜单，是否被别的地方引用
 
         baseMapper.deleteBatchIds(aslist);
 
@@ -215,7 +214,6 @@ import org.springframework.util.StringUtils;
         RLock lock = redissonClient.getLock("catalogJson-lock");
         lock.lock();
         Map<String, List<Catalog2Vo>> dataFromDb;
-        //TODO 这里是通过300s的过期时间保证在执行业务的时候锁不过期，还可以通过续机的方式，但是这个视频里目前没讲。p158
         try {
             dataFromDb= getDataFromDb();
         }finally {
@@ -235,7 +233,6 @@ import org.springframework.util.StringUtils;
             //redisTemplate.expire("lock", 30, TimeUnit.SECONDS);
             //加锁成功，执行业务
             Map<String, List<Catalog2Vo>> dataFromDb;
-            //TODO 这里是通过300s的过期时间保证在执行业务的时候锁不过期，还可以通过续机的方式，但是这个视频里目前没讲。p158
             try {
                 dataFromDb= getDataFromDb();
             }finally {

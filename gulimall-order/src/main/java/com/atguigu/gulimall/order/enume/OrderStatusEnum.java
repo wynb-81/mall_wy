@@ -6,13 +6,14 @@ package com.atguigu.gulimall.order.enume;
  */
 
 public enum OrderStatusEnum {
-    CREATE_NEW(0,"待付款"),
+    UNPAID(0,"待付款"),
     PAYED(1,"已付款"),
-    SENDED(2,"已发货"),
-    RECIEVED(3,"已完成"),
-    CANCLED(4,"已取消"),
+    RECIEVED(2,"已完成"),
+    CANCLED(3,"已取消"),
+    SENDED(4,"已发货"),
     SERVICING(5,"售后中"),
     SERVICED(6,"售后完成");
+
     private Integer code;
     private String msg;
 

@@ -3,6 +3,9 @@
 import java.util.Arrays;
 import java.util.Map;
 
+import com.atguigu.common.exception.BusinessException;
+import com.atguigu.gulimall.order.event.OrderCancelService;
+import com.atguigu.gulimall.order.event.OrderEventPublisher;
 import com.atguigu.gulimall.order.vo.OrderSubmitVo;
 import com.atguigu.gulimall.order.vo.SubmitOrderResponseVo;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -25,11 +28,18 @@ import com.atguigu.common.utils.R;
 @RestController
 @RequestMapping("order/order")
 public class OrderController {
-    @Autowired
-    private OrderService orderService;
+    private final OrderEventPublisher orderEventPublisher;
+    private final OrderService orderService;
+    private final OrderCancelService orderCancelService;
+
+    public OrderController(OrderEventPublisher orderEventPublisher, OrderService orderService, OrderCancelService orderCancelService) {
+        this.orderEventPublisher = orderEventPublisher;
+        this.orderService = orderService;
+        this.orderCancelService = orderCancelService;
+    }
 
     /**
-     * 点击提交订单发送的请求
+     * 提交订单
      * @author wynb-81
      * @create 2025/6/22
      **/
@@ -44,6 +54,37 @@ public class OrderController {
             return "redirect:http://order.gulimall.com/toTrade";
         }
     }
+
+    /**
+     * 取消订单-用户主动取消
+     * @author wynb
+     * @date 2026/1/21 17:02
+     */
+    @PostMapping("/{orderSn}/cancel")
+    public R cancelOrder(@PathVariable("orderSn") String orderSn) throws BusinessException {
+        orderCancelService.cancelOrder(orderSn,OrderCancelService.CancelType.USER);
+        return R.ok("取消成功");
+    }
+
+    /**
+     * 确认收货
+     * @author wynb
+     * @date 2026/1/21 17:05
+     */
+    @PostMapping("/{orderSn}/confirm-receipt")
+    public R confirmReceipt(@PathVariable("orderSn") String orderSn){
+        OrderEntity order = orderService.getOrderByOrderSn(orderSn);
+
+        //更新订单状态
+        order.setStatus(3);
+        orderService.updateById(order);
+
+        //发送订单完成事件，核销优惠券
+        orderEventPublisher.publishOrderCompleted(orderSn,order.getMemberId());
+
+        return R.ok("确认收货成功");
+    }
+
 
     /**
      * 返回订单状态

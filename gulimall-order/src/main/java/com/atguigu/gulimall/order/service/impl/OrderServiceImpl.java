@@ -8,19 +8,22 @@ import com.atguigu.common.utils.R;
 import com.atguigu.gulimall.order.entity.OrderItemEntity;
 import com.atguigu.gulimall.order.entity.PaymentInfoEntity;
 import com.atguigu.gulimall.order.enume.OrderStatusEnum;
+import com.atguigu.gulimall.order.event.OrderEventPublisher;
 import com.atguigu.gulimall.order.feign.CartFeignService;
 import com.atguigu.gulimall.order.feign.MemberFeignService;
 import com.atguigu.gulimall.order.feign.ProductFeignService;
 import com.atguigu.gulimall.order.feign.WmsFeignService;
 import com.atguigu.gulimall.order.interceptor.LoginUserInterceptor;
+import com.atguigu.gulimall.order.rocketMQ.OrderMessageService;
 import com.atguigu.gulimall.order.service.OrderItemService;
 import com.atguigu.gulimall.order.service.PaymentInfoService;
 import com.atguigu.gulimall.order.to.OrderCreateTo;
 import com.atguigu.gulimall.order.vo.*;
 import com.baomidou.mybatisplus.core.toolkit.IdWorker;
+import lombok.extern.slf4j.Slf4j;
+import org.apache.rocketmq.spring.core.RocketMQTemplate;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.beans.BeanUtils;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.script.DefaultRedisScript;
 import org.springframework.stereotype.Service;
@@ -48,10 +51,10 @@ import org.springframework.web.context.request.RequestAttributes;
 import org.springframework.web.context.request.RequestContextHolder;
 
 import static com.atguigu.gulimall.order.constant.OrderConstant.USER_ORDER_TOKEN_PREFIX;
-import static com.atguigu.gulimall.order.enume.OrderStatusEnum.CANCLED;
-import static com.atguigu.gulimall.order.enume.OrderStatusEnum.CREATE_NEW;
+import static com.atguigu.gulimall.order.enume.OrderStatusEnum.*;
 
 
+@Slf4j
 @Service("orderService")
 public class OrderServiceImpl extends ServiceImpl<OrderDao, OrderEntity> implements OrderService {
 
@@ -63,8 +66,10 @@ public class OrderServiceImpl extends ServiceImpl<OrderDao, OrderEntity> impleme
     private final StringRedisTemplate redisTemplate;
     private final ProductFeignService productFeignService;
     private final OrderItemService orderItemService;
-    private final RabbitTemplate rabbitTemplate;
     private final PaymentInfoService paymentInfoService;
+    private final RocketMQTemplate rocketMQTemplate;
+    private final OrderMessageService orderMessageService;
+    private final OrderEventPublisher orderEventPublisher;
 
     public OrderServiceImpl(MemberFeignService memberFeignService,
                             CartFeignService cartFeignService,
@@ -74,7 +79,7 @@ public class OrderServiceImpl extends ServiceImpl<OrderDao, OrderEntity> impleme
                             ProductFeignService productFeignService,
                             OrderItemService orderItemService,
                             RabbitTemplate rabbitTemplate,
-                            PaymentInfoService paymentInfoService) {
+                            PaymentInfoService paymentInfoService, RocketMQTemplate rocketMQTemplate, OrderMessageService orderMessageService, OrderEventPublisher orderEventPublisher) {
         this.memberFeignService = memberFeignService;
         this.cartFeignService = cartFeignService;
         this.wmsFeignService = wmsFeignService;
@@ -82,8 +87,10 @@ public class OrderServiceImpl extends ServiceImpl<OrderDao, OrderEntity> impleme
         this.redisTemplate = redisTemplate;
         this.productFeignService = productFeignService;
         this.orderItemService = orderItemService;
-        this.rabbitTemplate = rabbitTemplate;
         this.paymentInfoService = paymentInfoService;
+        this.rocketMQTemplate = rocketMQTemplate;
+        this.orderMessageService = orderMessageService;
+        this.orderEventPublisher = orderEventPublisher;
     }
 
     /**
@@ -182,48 +189,46 @@ public class OrderServiceImpl extends ServiceImpl<OrderDao, OrderEntity> impleme
 
         //验证成功
         //1.创建订单，订单项等信息
-        OrderCreateTo order = createOrder();
+        OrderCreateTo orderCreateTo = createOrder();
         //2.验价
-        BigDecimal payAmount = order.getOrder().getPayAmount();
+        BigDecimal payAmount = orderCreateTo.getOrder().getPayAmount();
         BigDecimal payPrice = vo.getPayPrice();
-        if (Math.abs(payAmount.subtract(payPrice).doubleValue()) < 0.01) {
-            //金额对比
-            //3.保存订单
-            saveOrder(order);
-            //4.锁定库存,只要有异常就回滚
-            WareSkuLockVo lockVo = new WareSkuLockVo();
-            lockVo.setOrderSn(order.getOrder().getOrderSn());
-
-            List<OrderItemVo> locks = order.getOrderItems().stream().map(item -> {
-                OrderItemVo itemVo = new OrderItemVo();
-                itemVo.setSkuId(item.getSkuId());
-                itemVo.setCount(item.getSkuQuantity());
-                itemVo.setTitle(item.getSkuName());
-                return itemVo;
-            }).collect(Collectors.toList());
-            lockVo.setLocks(locks);
-            R r = wmsFeignService.orderLockStock(lockVo);
-            if (r.getCode() == 0) {
-                //锁定库存成功
-                response.setOrder(order.getOrder());
-                //订单创建成功，给MQ发送消息
-                rabbitTemplate.convertAndSend(
-                        "order-event-exchange",
-                        "order.create.order",
-                        order.getOrder());
-                return response;
-            } else {
-                //锁定库存失败
-                String msg = (String) r.get("msg");
-                //throw new NoStockException(msg);
-                return null;
-            }
-        } else {
+        if (Math.abs(payAmount.subtract(payPrice).doubleValue()) >= 0.01) {
             //金额对比失败
             response.setCode(2);
             return response;
         }
+        //3.保存订单
+        saveOrder(orderCreateTo);
+        //4.锁定库存,只要有异常就回滚
+        WareSkuLockVo lockVo = new WareSkuLockVo();
+        lockVo.setOrderSn(orderCreateTo.getOrder().getOrderSn());
 
+        List<OrderItemVo> locks = orderCreateTo.getOrderItems().stream().map(item -> {
+            OrderItemVo itemVo = new OrderItemVo();
+            itemVo.setSkuId(item.getSkuId());
+            itemVo.setCount(item.getSkuQuantity());
+            itemVo.setTitle(item.getSkuName());
+            return itemVo;
+        }).collect(Collectors.toList());
+        lockVo.setLocks(locks);
+        R r = wmsFeignService.orderLockStock(lockVo);   //调用仓库服务，锁定库存
+        OrderEntity order = orderCreateTo.getOrder();
+        if (r.getCode() == 0) {
+            //锁定库存成功
+            response.setCode(0);
+            response.setMsg("下单成功");
+            response.setOrder(order);
+            //异步发送MQ消息，保证数据一致性问题以及消息不丢失
+            //修改了消息发送方式
+            //orderMessageService.sendMessageAfterCommit(orderCreateTo.getOrder(),"ORDER_CREATED_TOPIC");
+            orderEventPublisher.publishOrderCreated(order.getOrderSn(), order.getMemberId(), order.getCouponId());
+            return response;
+        } else {
+            //库存锁定失败
+            //TODO 这里需要分析具体的原因，是远程服务挂了，导致没锁库存成功；还是说没有库存了导致的？
+            return response;
+        }
     }
 
     /**
@@ -278,14 +283,14 @@ public class OrderServiceImpl extends ServiceImpl<OrderDao, OrderEntity> impleme
         entity.setReceiverProvince(fareResp.getAddress().getProvince());
         entity.setReceiverRegion(fareResp.getAddress().getRegion());
         //设置订单状态信息
-        entity.setStatus(CREATE_NEW.getCode());
+        entity.setStatus(UNPAID.getCode());
         entity.setAutoConfirmDay(7);    //自动收货时间
 
         return entity;
     }
 
     /**
-     * 2.1.1.1 构建订单信息需要的所有订单项数据
+     * 2.1.2 构建订单信息需要的所有订单项数据
      *
      * @author wynb-81
      * @create 2025/6/22
@@ -305,7 +310,7 @@ public class OrderServiceImpl extends ServiceImpl<OrderDao, OrderEntity> impleme
     }
 
     /**
-     * 2.1.1.2 构建某一个订单项的具体数据数据
+     * 2.1.2.1 构建某一个订单项的具体数据数据
      *
      * @author wynb-81
      * @create 2025/6/22
@@ -384,7 +389,6 @@ public class OrderServiceImpl extends ServiceImpl<OrderDao, OrderEntity> impleme
         orderEntity.setDeleteStatus(0);
     }
 
-
     /**
      * 3.保存订单数据
      *
@@ -399,6 +403,7 @@ public class OrderServiceImpl extends ServiceImpl<OrderDao, OrderEntity> impleme
         orderItemService.saveBatch(orderItems);
 
     }
+
     /**
      * 4.锁定库存，远程调用库存服务
      * @author wynb-81
@@ -452,36 +457,7 @@ public class OrderServiceImpl extends ServiceImpl<OrderDao, OrderEntity> impleme
         return "success";
     }
 
-    /**
-     * 消息队列监听关闭订单的实现方法
-     *
-     * @author wynb-81
-     * @create 2025/6/25
-     **/
-    @Override
-    public void closeOrder(OrderEntity entity) {
-        //查询当前这个订单的最新状态
-        OrderEntity orderEntity = this.getById(entity.getId());
-        if (orderEntity.getStatus() == CREATE_NEW.getCode()) {
-            //关闭订单
-            OrderEntity update = new OrderEntity(); //因为orderEntity是消息队列里面的实体，而延时队列过了一段时间，这个实体里面可能会发生变化，因此用一个新的实体
-            update.setId(orderEntity.getId());
-            update.setStatus(CANCLED.getCode());
-            this.updateById(update);
-            OrderTo orderTo = new OrderTo();
-            BeanUtils.copyProperties(orderEntity, orderTo);
-            try {
-                //保证消息一定会发送出去,每一个消息都做好日志记录（给数据库保存每一个消息的详细信息）
-                //定期扫描数据库，将失败的消息再发送一遍
-                rabbitTemplate.convertAndSend("order-event-exchange", "order.release.other", orderTo);
-            } catch (Exception e) {
 
-                //出现问题将没发送成功的消息，进行充实发送
-
-            }
-        }
-
-    }
 
     /**
      * 查询当前登录用户的所有订单
@@ -531,7 +507,7 @@ public class OrderServiceImpl extends ServiceImpl<OrderDao, OrderEntity> impleme
         OrderEntity orderEntity = new OrderEntity();
         orderEntity.setOrderSn(seckillOrder.getOrderSn());
         orderEntity.setMemberId(seckillOrder.getMemberId());
-        orderEntity.setStatus(CREATE_NEW.getCode());
+        orderEntity.setStatus(UNPAID.getCode());
         BigDecimal multiply = seckillOrder.getSeckillPrice().multiply(new BigDecimal("" + seckillOrder.getNum()));
         orderEntity.setPayAmount(multiply);
         this.save(orderEntity);

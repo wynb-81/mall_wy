@@ -103,7 +103,6 @@ public class MallSearchServiceImpl implements MallSearchService {
                 }
 
                 //1.2.2按照品牌ID查询，并且可能有多个值
-                //TODO 为什么判断品牌ID还要加一个大于0，而三级分类ID不需要加
                 if (param.getBrandId()!=null && param.getBrandId().size()>0){
                     boolQuery.filter(QueryBuilders.termQuery("brandId", param.getBrandId()));
                 }
@@ -250,7 +249,6 @@ public class MallSearchServiceImpl implements MallSearchService {
             String attrs_name = attrsNameAgg.getBuckets().get(0).getKeyAsString();
             attrVo.setAttrName(attrs_name);
             //获得属性值,
-            // TODO 这里自己就一直头疼怎么去拿到所有可能的值？就忘记了stream流的用法
             List<String> attrs_values = ((ParsedStringTerms) bucket.getAggregations().get("attrs_value_agg")).getBuckets().stream().map(item->{
                 String keyAsString = ((Terms.Bucket)item).getKeyAsString();
                 return keyAsString;
@@ -302,7 +300,6 @@ public class MallSearchServiceImpl implements MallSearchService {
         //5.分页信息——页码
         result.setPageNum(param.getPageNum());
         //5.分页信息——总记录数
-        //TODO 可能查不到数据，出现空指针异常
         long total = hits.getTotalHits().value;
         result.setTotal(total);
         //5.分页信息——总页码
@@ -340,7 +337,6 @@ public class MallSearchServiceImpl implements MallSearchService {
         }
 
         //品牌、分类的面包屑导航
-        //TODO 分类
         if (param.getBrandId() != null && param.getBrandId().size()>0){
             List<SearchResult.NavVo> navs = result.getNavs();
             SearchResult.NavVo navVo = new SearchResult.NavVo();

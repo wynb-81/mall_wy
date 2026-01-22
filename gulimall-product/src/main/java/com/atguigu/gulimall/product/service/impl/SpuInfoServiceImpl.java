@@ -154,7 +154,6 @@ public class SpuInfoServiceImpl extends ServiceImpl<SpuInfoDao, SpuInfoEntity> i
                     return !StringUtils.isEmpty(entity.getImgUrl());
                 }).collect(Collectors.toList());
                 //6.2）、sku的图片信息:pms_sku_images
-                //TODO 没有图片的，路径无需保存
                 skuImagesService.saveBatch(imagesEntities);
 
                 //6.3）、sku的销售属性信息:pms_sku_sale_attr_vaLue
@@ -231,7 +230,6 @@ public class SpuInfoServiceImpl extends ServiceImpl<SpuInfoDao, SpuInfoEntity> i
         //1.查出当前spuid对应的所有sku信息
         List<SkuInfoEntity> skus =  skuInfoService.getSkuBuSpuId(spuId);
 
-        //TODO 4、查询当前sku的所有可以被用来检索的规格属性
         List<ProductAttrValueEntity> baseAttrs = productAttrValueService.baseAttrlistforspu(spuId);
         List<Long> attrIds = baseAttrs.stream().map(ProductAttrValueEntity::getAttrId).collect(Collectors.toList());
 
@@ -246,7 +244,6 @@ public class SpuInfoServiceImpl extends ServiceImpl<SpuInfoDao, SpuInfoEntity> i
             return attrs1;
         }).collect(Collectors.toList());
 
-        //TODO 1、发送远程调用，库存系统查询是否有库存 hasStock
         List<Long> skuIdList =
                 skus.stream().map(SkuInfoEntity::getSkuId).collect(Collectors.toList());
         Map<Long, Boolean> stockMap = null;
@@ -279,10 +276,8 @@ public class SpuInfoServiceImpl extends ServiceImpl<SpuInfoDao, SpuInfoEntity> i
             }
 //            esModel.setHasStock(finalStockMap.get(sku.getSkuId()));
 
-            //TODO 2、热度评分，设置为0.自己可以扩展这个功能   hotScore
             esModel.setHotScore(0L);
 
-            //TODO 3、查询品牌和分类的名字信息
             BrandEntity brand = brandService.getById(sku.getBrandId());
             esModel.setBrandName(brand.getName());
             esModel.setBrandImg(brand.getLogo());
@@ -295,11 +290,9 @@ public class SpuInfoServiceImpl extends ServiceImpl<SpuInfoDao, SpuInfoEntity> i
             return esModel;
         }).collect(Collectors.toList());
 
-        //TODO 5、 将数据发送给es进行保存，search模块的服务
         R r = searchFeignService.productStatusUp(upProducts);
         if(r.getCode() ==0){
             //远程调用成功
-            //TODO 6、修改当前SPU的上架状态
             baseMapper.updateSpuStatus(spuId,SPU_UP.getCode());
         }else{
             //远程调用失败

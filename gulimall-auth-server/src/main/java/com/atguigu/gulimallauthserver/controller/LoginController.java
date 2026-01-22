@@ -65,7 +65,6 @@ public class LoginController {
     @ResponseBody
     @GetMapping("/sms/sendcode")
     public R sendCode(@RequestParam("phone")String phone){
-        //1.TODO 接口防刷
 
         /*
          *  2.验证码的再次校验：
@@ -81,7 +80,6 @@ public class LoginController {
                 return R.error(SMS_CODE_EXCEPTION.getCode(),SMS_CODE_EXCEPTION.getMsg());
             }
         }
-        //TODO 调用的这个API的验证码有格式要求
 //        String code = UUID.randomUUID().toString().substring(0,7)+"_"+System.currentTimeMillis();
         String code = "123456";
         String redisCode1 = "123456"+"_"+System.currentTimeMillis();
@@ -108,7 +106,6 @@ public class LoginController {
             /*
              * 转发到注册页-forward
             RedirectAttributes :用来重定向视图
-            TODO 分布式下的session问题
             如果直接转发到注册的话，会有POST和GET请求不匹配的问题
             如果是直接渲染reg的话，那么表单提交有问题
             重定向携带数据，利用session原理，将数据放到session中，然后重定向之后再从session中取出来
@@ -140,7 +137,6 @@ public class LoginController {
                 errors.put("code","验证码错误");
                 redirectAttributes.addFlashAttribute("errors",errors);
                 //验证码不对，转发到注册页
-                // TODO 这里我觉得应该让重新输入验证码，而不是转发到注册页
                 return "redirect:http://auth.gulimall.com/reg.html";
             }
         }else{
@@ -148,7 +144,6 @@ public class LoginController {
             errors.put("code","验证码错误");
             redirectAttributes.addFlashAttribute("errors",errors);
             //验证码不对，转发到注册页
-            // TODO 这里我觉得应该让重新输入验证码，而不是转发到注册页
             return "redirect:http://auth.gulimall.com/reg.html";
         }
 

@@ -150,11 +150,11 @@ public class MemberServiceImpl extends ServiceImpl<MemberDao, MemberEntity> impl
 
 
         //设置会员默认等级
-        // TODO 我认为这里有点啰嗦，直接设置为默认值就得了，没必要从数据库再查一遍\
+
         MemberLevelEntity levelEntity =  memberLevelDao.getDefaultLevel();
         entity.setLevelId(levelEntity.getId());
 
-        //TODO 其他默认信息
+
 
         //保存用户信息
         memberDao.insert(entity);

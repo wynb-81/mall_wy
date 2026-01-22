@@ -54,7 +54,7 @@ public class BrandServiceImpl extends ServiceImpl<BrandDao, BrandEntity> impleme
             //同步更新其它关联表中的数据
             categoryBrandRelationService.undateBrand(brand.getBrandId(),brand.getName());
 
-            //TODO 更新其他关联
+
 
         }
 

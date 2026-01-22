@@ -33,4 +33,3 @@ public interface WareSkuService extends IService<WareSkuEntity> {
 
     void unlockStock(OrderTo orderTo);
 }
-

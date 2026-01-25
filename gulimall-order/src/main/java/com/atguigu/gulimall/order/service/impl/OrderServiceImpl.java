@@ -3,7 +3,6 @@ package com.atguigu.gulimall.order.service.impl;
 import com.alibaba.fastjson.TypeReference;
 import com.atguigu.common.to.MemberRespVo;
 import com.atguigu.common.to.SeckillOrderTo;
-import com.atguigu.common.to.mq.OrderTo;
 import com.atguigu.common.utils.R;
 import com.atguigu.gulimall.order.entity.OrderItemEntity;
 import com.atguigu.gulimall.order.entity.PaymentInfoEntity;
@@ -22,8 +21,6 @@ import com.atguigu.gulimall.order.vo.*;
 import com.baomidou.mybatisplus.core.toolkit.IdWorker;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.rocketmq.spring.core.RocketMQTemplate;
-import org.springframework.amqp.rabbit.core.RabbitTemplate;
-import org.springframework.beans.BeanUtils;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.script.DefaultRedisScript;
 import org.springframework.stereotype.Service;
@@ -78,7 +75,6 @@ public class OrderServiceImpl extends ServiceImpl<OrderDao, OrderEntity> impleme
                             StringRedisTemplate redisTemplate,
                             ProductFeignService productFeignService,
                             OrderItemService orderItemService,
-                            RabbitTemplate rabbitTemplate,
                             PaymentInfoService paymentInfoService, RocketMQTemplate rocketMQTemplate, OrderMessageService orderMessageService, OrderEventPublisher orderEventPublisher) {
         this.memberFeignService = memberFeignService;
         this.cartFeignService = cartFeignService;
@@ -191,13 +187,14 @@ public class OrderServiceImpl extends ServiceImpl<OrderDao, OrderEntity> impleme
         //1.创建订单，订单项等信息
         OrderCreateTo orderCreateTo = createOrder();
         //2.验价
-        BigDecimal payAmount = orderCreateTo.getOrder().getPayAmount();
-        BigDecimal payPrice = vo.getPayPrice();
-        if (Math.abs(payAmount.subtract(payPrice).doubleValue()) >= 0.01) {
-            //金额对比失败
-            response.setCode(2);
-            return response;
-        }
+        //TODO 现在这里有空指针异常
+//        BigDecimal payAmount = orderCreateTo.getOrder().getPayAmount();
+//        BigDecimal payPrice = vo.getPayPrice();
+//        if (Math.abs(payAmount.subtract(payPrice).doubleValue()) >= 0.01) {
+//            //金额对比失败
+//            response.setCode(2);
+//            return response;
+//        }
         //3.保存订单
         saveOrder(orderCreateTo);
         //4.锁定库存,只要有异常就回滚
@@ -223,6 +220,7 @@ public class OrderServiceImpl extends ServiceImpl<OrderDao, OrderEntity> impleme
             //修改了消息发送方式
             //orderMessageService.sendMessageAfterCommit(orderCreateTo.getOrder(),"ORDER_CREATED_TOPIC");
             orderEventPublisher.publishOrderCreated(order.getOrderSn(), order.getMemberId(), order.getCouponId());
+            log.info("发送了MQ消息");
             return response;
         } else {
             //库存锁定失败
@@ -269,22 +267,23 @@ public class OrderServiceImpl extends ServiceImpl<OrderDao, OrderEntity> impleme
         entity.setMemberId(respVo.getId());
         OrderSubmitVo orderSubmitVo = confirmVoThreadLocal.get();
         //获取收货地址信息
-        R fare = wmsFeignService.getFare(orderSubmitVo.getAddrId());
-        FareVo fareResp = fare.getData(new TypeReference<FareVo>() {
-        });
-        //设置运费信息
-        entity.setFreightAmount(fareResp.getFare());
-        //设置收货人信息
-        entity.setReceiverCity(fareResp.getAddress().getCity());
-        entity.setReceiverDetailAddress(fareResp.getAddress().getDetailAddress());
-        entity.setReceiverName(fareResp.getAddress().getName());
-        entity.setReceiverPostCode(fareResp.getAddress().getPostCode());
-        entity.setReceiverPhone(fareResp.getAddress().getPhone());
-        entity.setReceiverProvince(fareResp.getAddress().getProvince());
-        entity.setReceiverRegion(fareResp.getAddress().getRegion());
-        //设置订单状态信息
-        entity.setStatus(UNPAID.getCode());
-        entity.setAutoConfirmDay(7);    //自动收货时间
+        //TODO 当前wms中还没有fare这个方法
+//        R fare = wmsFeignService.getFare(orderSubmitVo.getAddrId());
+//        FareVo fareResp = fare.getData(new TypeReference<FareVo>() {
+//        });
+//        //设置运费信息
+//        entity.setFreightAmount(fareResp.getFare());
+//        //设置收货人信息
+//        entity.setReceiverCity(fareResp.getAddress().getCity());
+//        entity.setReceiverDetailAddress(fareResp.getAddress().getDetailAddress());
+//        entity.setReceiverName(fareResp.getAddress().getName());
+//        entity.setReceiverPostCode(fareResp.getAddress().getPostCode());
+//        entity.setReceiverPhone(fareResp.getAddress().getPhone());
+//        entity.setReceiverProvince(fareResp.getAddress().getProvince());
+//        entity.setReceiverRegion(fareResp.getAddress().getRegion());
+//        //设置订单状态信息
+//        entity.setStatus(UNPAID.getCode());
+//        entity.setAutoConfirmDay(7);    //自动收货时间
 
         return entity;
     }
@@ -379,7 +378,9 @@ public class OrderServiceImpl extends ServiceImpl<OrderDao, OrderEntity> impleme
         //1.订单价格相关
         orderEntity.setTotalAmount(total);
         //应付总额，商品价格+运费
-        orderEntity.setPayAmount(total.add(orderEntity.getFreightAmount()));
+        //TODO 此处有空指针异常
+        orderEntity.setPayAmount(total);
+//        orderEntity.setPayAmount(total.add(orderEntity.getFreightAmount()));
         orderEntity.setCouponAmount(coupon);
         orderEntity.setIntegrationAmount(integration);
         orderEntity.setPromotionAmount(promotion);

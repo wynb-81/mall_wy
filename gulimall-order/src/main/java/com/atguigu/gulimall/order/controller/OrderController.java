@@ -26,7 +26,7 @@ import com.atguigu.common.utils.R;
  * @date 2025-04-23 14:35:27
  */
 @RestController
-@RequestMapping("order/order")
+//@RequestMapping("order")
 public class OrderController {
     private final OrderEventPublisher orderEventPublisher;
     private final OrderService orderService;

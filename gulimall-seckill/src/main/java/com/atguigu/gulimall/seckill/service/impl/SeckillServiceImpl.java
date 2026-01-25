@@ -15,7 +15,6 @@ import com.atguigu.gulimall.seckill.vo.SkuInfoVo;
 import com.baomidou.mybatisplus.core.toolkit.IdWorker;
 import org.redisson.api.RSemaphore;
 import org.redisson.api.RedissonClient;
-import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.BoundHashOperations;
@@ -44,8 +43,6 @@ public class SeckillServiceImpl implements SeckillService {
     ProductFeignService productFeignService;
     @Autowired
     RedissonClient redissonClient;
-    @Autowired
-    RabbitTemplate rabbitTemplate;
 
     /**
      * 将秒杀商品添加到购物车
@@ -94,9 +91,7 @@ public class SeckillServiceImpl implements SeckillService {
                                     orderTo.setSkuId(redis.getSkuId());
                                     orderTo.setPromotionSessionId(redis.getPromotionSessionId());
                                     orderTo.setMemberId(respVo.getId());
-                                    rabbitTemplate.convertAndSend("order-event-exchange",
-                                            "order.seckill.order",
-                                            orderTo);
+
                                     return timeId;
                                 }
                                return null;

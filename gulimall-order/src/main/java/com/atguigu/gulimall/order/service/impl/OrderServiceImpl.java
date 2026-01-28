@@ -163,25 +163,26 @@ public class OrderServiceImpl extends ServiceImpl<OrderDao, OrderEntity> impleme
         confirmVoThreadLocal.set(vo);
         SubmitOrderResponseVo response = new SubmitOrderResponseVo();
         MemberRespVo memberRespVo = LoginUserInterceptor.getLoginUser();
-        //1.验证令牌,需要注意令牌的对比和删除操作要保证原子性，否则如果用户点击的很快，还是会重复提交一个订单。所以这个操作用脚本来完成
-        String script = "if redis.call('get',KEYS[1]) == ARGV[1] then " +    //从redis获取令牌并检查是否存在且匹配
-                "return redis.call('del' ,KEYS[1]) " +   //删除令牌并返回1
-                "else " +
-                "return 0 " +
-                "end";
-        String orderToken = vo.getOrderToken();
-        //原子验证令牌和删除令牌
-        Long result = redisTemplate.execute(
-                new DefaultRedisScript<>(script, Long.class),
-                Arrays.asList(USER_ORDER_TOKEN_PREFIX + memberRespVo.getId()),
-                orderToken);
-
-        //验证失败
-        if (result == null || result == 0L) {
-            response.setCode(1);
-            response.setMsg("订单已提交或过期");
-            return response;
-        }
+//        //1.验证令牌,需要注意令牌的对比和删除操作要保证原子性，否则如果用户点击的很快，还是会重复提交一个订单。所以这个操作用脚本来完成
+//        String script = "if redis.call('get',KEYS[1]) == ARGV[1] then " +    //从redis获取令牌并检查是否存在且匹配
+//                "return redis.call('del' ,KEYS[1]) " +   //删除令牌并返回1
+//                "else " +
+//                "return 0 " +
+//                "end";
+//        String orderToken = vo.getOrderToken();
+//        //原子验证令牌和删除令牌
+//        Long result = redisTemplate.execute(
+//                new DefaultRedisScript<>(script, Long.class),
+//                Arrays.asList(USER_ORDER_TOKEN_PREFIX + memberRespVo.getId()),
+//                orderToken);
+//
+//        //验证失败
+//        if (result == null || result == 0L) {
+//            response.setCode(1);
+//            response.setMsg("订单已提交或过期");
+//            log.info("重复提交订单！");
+//            return response;
+//        }
 
         //验证成功
         //1.创建订单，订单项等信息
